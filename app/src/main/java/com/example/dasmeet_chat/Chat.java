@@ -7,6 +7,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -19,7 +20,9 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 
 public class Chat extends AppCompatActivity {
@@ -29,6 +32,9 @@ public class Chat extends AppCompatActivity {
     private ArrayList<String> nombres=new ArrayList<String>();
     private ArrayList<String> mensajes=new ArrayList<String>();
     private ArrayList<String> horas=new ArrayList<String>();
+    private static final long DURATION_ONE_DAY = 24 * 60 * 60 * 1000; // Duración de un día en milisegundos
+
+    private CountDownTimer countDownTimer;
     private ChatAdapter chatAdapter;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,51 +59,64 @@ public class Chat extends AppCompatActivity {
 
         nombre.setText(getNombre);
         //Picasso.get().load(getFotoPerfil).into(fotoPerfil)
-        chatRecView.setHasFixedSize(true);
-        chatRecView.setLayoutManager(new LinearLayoutManager(Chat.this));
-        chatAdapter=new ChatAdapter(usermail,getApplicationContext(),nombres,mensajes,horas);
-        chatRecView.setAdapter(chatAdapter);
-            databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
-                @Override
-                public void onDataChange(@NonNull DataSnapshot snapshot) {
-                    if (chatKey.isEmpty()) {
-                        chatKey = "1";
-                        if (snapshot.hasChild("chat")) {
-                            chatKey = String.valueOf(snapshot.child("chat").getChildrenCount() + 1);
-                        }
-                    }else{
-                        if (snapshot.hasChild("chat")){
-                            for(DataSnapshot messagesnapshot: snapshot.child("chat").child(chatKey).child("messages").getChildren()){
-                                if (messagesnapshot.hasChild("msg")&&messagesnapshot.hasChild("usermail")){
-                                    final String msgTimeStamp=messagesnapshot.getKey();
-                                    final String usermail=messagesnapshot.child("usermail").getValue(String.class);
-                                    final String msg=messagesnapshot.child("msg").getValue(String.class);
-                                    nombres.add(usermail);
-                                    mensajes.add(msg);
-                                    horas.add(msgTimeStamp);
-                                }
+
+        databaseReference.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                nombres.clear();
+                mensajes.clear();
+                horas.clear();
+                if (chatKey.isEmpty()) {
+                    activarTemporizador();
+                    chatKey = "1";
+                    if (snapshot.hasChild("chat")) {
+                        chatKey = String.valueOf(snapshot.child("chat").getChildrenCount() + 1);
+                    }
+                }else{
+                    if (snapshot.hasChild("chat")){
+                        for(DataSnapshot messagesnapshot: snapshot.child("chat").child(chatKey).child("messages").getChildren()){
+                            if (messagesnapshot.hasChild("msg")&&messagesnapshot.hasChild("emisor")){
+                                final String msgTimeStamp=messagesnapshot.getKey();
+                                final String usermail=messagesnapshot.child("emisor").getValue(String.class);
+                                final String msg=messagesnapshot.child("msg").getValue(String.class);
+                                nombres.add(usermail);
+                                mensajes.add(msg);
+                                horas.add(msgTimeStamp);
+                                chatRecView.setHasFixedSize(true);
+                                chatRecView.setLayoutManager(new LinearLayoutManager(Chat.this));
+                                chatAdapter=new ChatAdapter(usermail,getApplicationContext(),nombres,mensajes,horas);
+                                chatRecView.setAdapter(chatAdapter);
                             }
                         }
                     }
                 }
+            }
 
-                @Override
-                public void onCancelled(@NonNull DatabaseError error) {
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
 
-                }
-            });
+            }
+        });
         //enviar boton
         enviar.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                final String datetime= String.valueOf(System.currentTimeMillis()).substring(0,10);
-                final String mensaje=messageEditTxt.getText().toString();
-                if (!mensaje.isEmpty()) {
+                // Obtener el tiempo actual en milisegundos
+                long currentTimeMillis = System.currentTimeMillis();
+
+// Crear un objeto SimpleDateFormat para el formato deseado
+                SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy HH:mm");
+
+// Convertir el tiempo actual a formato de fecha y hora
+                String formattedDateTime = dateFormat.format(new Date(currentTimeMillis));
+
+                String message=messageEditTxt.getText().toString();
+                if (!message.isEmpty()) {
                     databaseReference.child("chat").child(chatKey).child("user1").setValue(user1mail);
                     databaseReference.child("chat").child(chatKey).child("user2").setValue(usermail);
-                    databaseReference.child("chat").child(chatKey).child("messages").child(datetime).child("msg").setValue(mensaje);
-                    databaseReference.child("chat").child(chatKey).child("messages").child(datetime).child("msg").setValue(usermail);
-
+                    databaseReference.child("chat").child(chatKey).child("messages").child(formattedDateTime).child("msg").setValue(message);
+                    databaseReference.child("chat").child(chatKey).child("messages").child(formattedDateTime).child("emisor").setValue(usermail);
+                    getMessages();
                 }else{
                     Toast.makeText(Chat.this, "No se puede enviar mensajes vacios", Toast.LENGTH_SHORT).show();
                 }
@@ -118,4 +137,10 @@ public class Chat extends AppCompatActivity {
             }
         });
     }
+
+    private void activarTemporizador() {
+
+    }
+
+
 }

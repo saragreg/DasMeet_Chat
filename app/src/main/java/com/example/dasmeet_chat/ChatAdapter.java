@@ -42,9 +42,10 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.MyViewHolder> 
             holder.otroLayout.setVisibility(View.GONE);
         }else {
             holder.miLayout.setVisibility(View.GONE);
+            holder.otroLayout.setVisibility(View.VISIBLE);
             holder.otroMsg.setText(mensajes.get(position));
             holder.otroHora.setText(horas.get(position));
-            holder.otroLayout.setVisibility(View.VISIBLE);
+
         }
 
     }

@@ -22,13 +22,16 @@ public class UsersList extends AppCompatActivity {
     DatabaseReference databaseReference= FirebaseDatabase.getInstance().getReferenceFromUrl("https://mensajeriafcm-ea7c9-default-rtdb.europe-west1.firebasedatabase.app/");
     private String usermail="saragarcia@gmail.com";
     private String userExtmail="";
+    private String chatKey="";
+    String mailComprobar1="";
+    String mailComprobar2="";
+    private ArrayList<String> noms=new ArrayList<>();
+    private ArrayList<String> imgs=new ArrayList<>();
+    private ArrayList<String> mails=new ArrayList<>();
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_users_list);
-        ArrayList<String> noms=new ArrayList<>();
-        ArrayList<String> imgs=new ArrayList<>();
-        ArrayList<String> mails=new ArrayList<>();
         noms.add("jowi");
         noms.add("diego");
         noms.add("vicent");
@@ -43,56 +46,44 @@ public class UsersList extends AppCompatActivity {
         lista.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
-                Intent intent = new Intent(UsersList.this, Chat.class);
-                intent.putExtra("nombre", noms.get(i));
-                intent.putExtra("mi_nombre", "sara");
-                intent.putExtra("chatKey", "");
-                //intent.putExtra("fotoPerfil",imgs.get(i));
-                startActivity(intent);
-                //obtenerClave(noms.get(i),mails.get(i));
+                obtenerClave(mails.get(i),i);
             }
         });
     }
 
-    private void obtenerClave(String nom,String mail) {
-        // Crea una referencia a la ubicación "chat" en la base de datos
-        DatabaseReference chatRef = databaseReference.child("chat");
+    private void obtenerClave(String otroMail,int pos) {
+        chatKey="";
+        databaseReference.addValueEventListener(new ValueEventListener() {
 
-// Realiza una consulta para obtener el chatKey basado en user1mail y usermail
-        Query query = chatRef.orderByChild("user1").equalTo(mail);
-                /*.or().orderByChild("user1").equalTo(usermail)
-                .or().orderByChild("user2").equalTo(mail)
-                .or().orderByChild("user2").equalTo(usermail);*/
-
-        query.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                for (DataSnapshot chatSnapshot : dataSnapshot.getChildren()) {
-                    if (dataSnapshot.exists()) {
-
-                        String chatKey = chatSnapshot.getKey();
-                        Intent intent = new Intent(UsersList.this, Chat.class);
-                        intent.putExtra("nombre", nom);
-                        intent.putExtra("mi_nombre", "sara");
-                        intent.putExtra("chatKey", chatKey);
-                        //intent.putExtra("fotoPerfil",imgs.get(i));
-                        startActivity(intent);
-                        // Aquí tienes el chatKey correspondiente a la consulta
-                        // Puedes realizar las operaciones que necesites con el chatKey obtenido
-                    }else{
-                        Intent intent = new Intent(UsersList.this, Chat.class);
-                        intent.putExtra("nombre", nom);
-                        intent.putExtra("mi_nombre", "sara");
-                        intent.putExtra("chatKey", "");
-                        //intent.putExtra("fotoPerfil",imgs.get(i));
-                        startActivity(intent);
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                if (snapshot.hasChild("chat")) {
+                    for (DataSnapshot messagesnapshot : snapshot.child("chat").getChildren()) {
+                        if (messagesnapshot.hasChild("user1") && messagesnapshot.hasChild("user2")) {
+                            mailComprobar1=messagesnapshot.child("user1").getValue(String.class);
+                            mailComprobar2=messagesnapshot.child("user2").getValue(String.class);
+                            if((mailComprobar1.equals(otroMail) || mailComprobar1.equals(usermail)) && (mailComprobar2.equals(otroMail) || mailComprobar2.equals(usermail)))
+                            {
+                                //se asume que no existen mensajes contigo mismo
+                                chatKey=messagesnapshot.getKey();
+                            }
+                        }
                     }
                 }
+                //se abre la ventana de chat
+                Intent intent = new Intent(UsersList.this, Chat.class);
+                intent.putExtra("nombre", noms.get(pos));
+                intent.putExtra("mail1",mails.get(pos));
+                intent.putExtra("mailUser",usermail);
+                intent.putExtra("mi_nombre", "sara");
+                intent.putExtra("chatKey", chatKey);
+                //intent.putExtra("fotoPerfil",imgs.get(i));
+                startActivity(intent);
             }
 
             @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-                // Maneja cualquier error de la consulta
+            public void onCancelled(@NonNull DatabaseError error) {
+
             }
         });
 
